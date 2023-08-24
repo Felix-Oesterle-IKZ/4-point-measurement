@@ -10,6 +10,8 @@ import yaml
 import matplotlib.pyplot as plt
 import numpy as np
 
+
+
 def createFiles():
     directory = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
     parent_dir = "./data/"
@@ -17,11 +19,12 @@ def createFiles():
     os.mkdir(path)
     ### Pepare Files
     with open(os.path.join(path, "data.csv"), "w") as f: 
-        f.write("tSensor,voltage\n")
+        f.write("Angeleger Strom I,Gemessende Spannung U,spezifischer Wiederstand rho,Gemessende Temperatur [°C],Messdaten\n")
         
     with open(os.path.join(path, "mesurement_data"), "w") as f: 
-        f.write(f"""Zieltemperaturn: {tTargetList}:\nSpannungen: {IList}\n\n""")
+        f.write(f"""Zieltemperaturn: {tTargetList}\nSpannungen: {IList}\n""")
         
+    return path
 # Liest das Rezept ein
 #Erg: Wertelisten aus dem Rezept
 def readRezept(debugPrint=True):
@@ -46,8 +49,6 @@ def readRezept(debugPrint=True):
         print(f"IList:   {IList}")
     return tTarget, tTime, tStationaer, IList
 
-
-
 # Erg: Plotet mit den neusten Werten neu und legt die Grezen des Graphen neu fest.
 def plotData(ax, fig, tSensorList, vList, tSensorLine, vLine):
     x1 = np.linspace(0,len(tSensorList),len(tSensorList))
@@ -70,7 +71,6 @@ def plotData(ax, fig, tSensorList, vList, tSensorLine, vLine):
     fig.canvas.draw()
     fig.canvas.flush_events()
 
-
 ### Prüfen ob die Temperatur Stationär ist
 def stationaerPruefung(temperaturListe, tStationaer, StationaerAbweichung=1):
     if len(temperaturListe) > tStationaer: # Nur prüfen wenn über StationarTime Einträge vohanden sind
@@ -86,34 +86,32 @@ def stationaerPruefung(temperaturListe, tStationaer, StationaerAbweichung=1):
             #print("Nicht Stationaer")
     return isStationaer
 
-def beginMesurement(tTarget):
+def beginMesurement(tTarget, I):
     print("Messung beginnt!")
-    with open("mesurement_data", "a") as f:
-        f.write(f"Zieltemperatur: {tTarget}°C; geplante")
-    
+    #dt = datetime.now()
+    with open(os.path.join(path, "mesurement_data"), "a") as f:
+        f.write(f"\nZieltemperatur: {tTarget}°C\n  Aktueller Strom: {I}A\n")
+    data_points = 0
+    return data_points
 
-"""
-# Funktion für das Autosrollen
-def AutoScroll(Graph, AutoStop, xVon, xEnde, yVon, yEnde, minusY, plusY): 
-    if AutoStop == False:                                     # Autoscrollen ist aktiv
-        Graph.axis('auto')                                  # Schaltet Autoscaling wieder ein!
-        Graph.relim()                                       # Neu Berechnung der Datengrenzen
-        ymin, ymax = Graph.get_ylim()                       # holt den max. und min. Wert aus dem jeweiligen Diagramm und ...
-        Graph.set_ylim(ymin - minusY, ymax + plusY)         # ... setzt die neuen Grenzen für die Y-Achse und ...
-        Graph.set_xlim(0,listTiRe[-1] + 10)                 # ... X-Achse (mit dem Plus und Minus, kann man Abstände zu den Achsen erstellen) ein
-    elif AutoStop == True:                                    # Autoscrollen wurde deaktiviert
-        Graph.axis([xVon,xEnde,yVon,yEnde])               # Übernimmt die Werte des Manuellen Anpassen der Achsen aus den Eingabefeldern!
-"""
+
+def getData(t, debugPrint=False):
+        U = round(float(daq.read().split(",")[1]), 4) # Volt die gemessen werden
+        if U >= 100: U = 0 # Strom auf Null setzen wenn nichts gemessen wird
+        
+        # Formeln siehe: https://iopscience.iop.org/article/10.1088/0953-8984/27/22/223201/pdf
+        rho_2D = round(4.532 * (U/I) * t, 4) # spezifischer Wiederstand
+        #rho_3D = (2*np.pi*s/(2-np.sqrt(2)))*(U/I) # Bulk resistivity
+        tSensor = sensor.get_istwert()
+        
+        if debugPrint == True:
+            print(f"U={U} V")
+            print(f"rho_2D={rho_2D}")
+            print(f"{tSensor}°C", end="\n\n")
+        return U, rho_2D, tSensor
 
 
                                     ### ### ### BEGIN PREP ### ### ###
-
-
-'''
-sensor = adafruit.Adafruit(name="Pt100", GPIO="D24",res=100,refres=430,wire=4,Vergleichssensor=True)
-tSensor = float(sensor.get_temperatur())
-print(f"T_sensor = {round(tSensor,2)}°C")
-'''
 
 # Load config data
 with open("config.yml", "r") as f:
@@ -133,7 +131,7 @@ tSensorList = [0] # Stores all Temperatures from sensor internaly
 uList = [0] # Stores all Temperatures from Calibration instrument internaly
 tTargetList, tTimeList, tStationaerList, IList = readRezept() # tTargetList ist die Liste der Zieltempraturen,# tTimeList ist die Liste der "Verweilzeiten"
 
-createFiles()
+path = createFiles()
 ### Plot Prep.
 x1 = 0
 x2 = 0
@@ -148,56 +146,54 @@ tSensorLine, = plt.plot(x1, tSensorList)
 uLine, = plt.plot(x2, uList)
 
 
-
                          ### ### ### BEGIN LOOP ### ### ###
+firstTime = True
 t = 0.004 # Tiefe in m
-k = 1 # korrekturfaktor oE
-s = 0.03 #Strecke zwischen zwei Messspitzen in m
-for i in range(len(tTargetList)):
+#k = 1 # korrekturfaktor oE
+#s = 0.03 #Strecke zwischen zwei Messspitzen in m
+for i in range(len(tTargetList)): # Für jede Temperatur:
+    
     tTarget     = float(tTargetList[i])
     tTime       = int(tTimeList[i])
     tStationaer = int(tStationaerList[i])
-    while True:
-        I = 0.1 # Ampere die angelgt sind
-        U = round(float(daq.read().split(",")[1]),4) # Volt die gemessen werden
-        if U >= 100: U = 0 # Strom auf Null setzen wenn nichts gemessen wird
-        
-        # Formeln siehe: https://iopscience.iop.org/article/10.1088/0953-8984/27/22/223201/pdf
-        rho_2D = 4.532 * (U/I) * t # spezifischer Wiederstand
-        #rho_3D = (2*np.pi*s/(2-np.sqrt(2)))*(U/I) # Bulk resistivity
-        
-        #print(f"U={U} V")
-        #print(f"rho_2D={rho_2D}")
-        #print(f"rho_3D={rho_3D}")
+    data_points = 0
     
-        tSensor = sensor.get_istwert()
-        print(f"{tSensor} °C")
+    for tempI in IList: #Für jeden Strom in jeder Temperatur:
         
+        I = float(tempI) # Ansteuerung hier impementieren!
+        print(I)
+        while True:
+            U, rho_2D, tSensor = getData(t, True) # Get Data
         
-
-        ### Save data internaly
-        tSensorList.append(tSensor)
-        uList.append(U)
+            ### Save data internaly for plot Data function
+            tSensorList.append(tSensor)
+            uList.append(U)
         
-        isStationaer = stationaerPruefung(tSensorList, tStationaer)
+            isStationaer = stationaerPruefung(tSensorList, tStationaer)
         
-        ### Save data externaly
-        with open("data.csv", "a") as f:
-            f.write(f"{tSensor},{U}\n")
-        
-        
-        
-        ### Check if tSensor is in Target Area and stationary
-        if tSensor <= (tTarget + tolerance) and tSensor >= (tTarget - tolerance) and isStationaer == True:
-            
-            beginMesurement()
-            line = f"{I},{U},{rho_2D},{tSensor}"
-            
-            with open("mesurement_data", "a") as f:
+            ### Save data externaly
+            line = f"{I},{U},{rho_2D},{tSensor},{isStationaer}\n"
+            with open(os.path.join(path, "data.csv"), "a") as f:
                 f.write(line)
         
-        plotData(ax, fig, tSensorList, uList, tSensorLine, uLine)
+            ### Check if tSensor is in Target Area and stationary
+            if tSensor <= (tTarget + tolerance) and tSensor >= (tTarget - tolerance) and isStationaer == True:
+            
+                if firstTime == True: #execute only first time in Loop
+                    firstTime = False
+                    data_points = beginMesurement(tTarget, I)
+            
+                line = f"    {rho_2D}\n"
+                with open(os.path.join(path,"mesurement_data"), "a") as f:
+                    f.write(line)
+                data_points = data_points+1
+            
+                # Skip to next Step in Sequence
+                if data_points >= tTime:
+                    firstTime = True
+                    break
         
-        time.sleep(1)
-    
-    
+        
+            plotData(ax, fig, tSensorList, uList, tSensorLine, uLine)
+        
+            time.sleep(1)
