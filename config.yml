@@ -1,6 +1,6 @@
 DAQ-6510:
   serial-interface:
-    port: /dev/ttyUSB0
+    port: /dev/ttyUSB1
     baudrate: 115200
     bytesize: 8
     stopbits: 1
@@ -24,7 +24,7 @@ DAQ-6510:
       
 Heizer:
   Schnittstelle:
-    com:      '/dev/ttyUSB1'   
+    com:      '/dev/ttyUSB0'   
     bd:       9600              # Emulation: 19200 (8N1) - Eurotherm/IKA: 9600 (7E1)
     parity:   'E'
     stopbits: 1
