@@ -1,13 +1,10 @@
 # Tiefe des Werkstücks [mm]
 t:5
 
-# Spannungen die angesteuert werden [A]:
-# WIP, Spannungen sind falsch
-i:0,2,4
+# Ströme die angesteuert werden [A]:
+i:0.1, 0.5, 0.9
 
 # Rezept das abgearbeitet wird:
-# Zieltemperatur[°C], Toleranz Zieltemperaur [°C], Haltedauer [min], Stationärdauer [min]
-r: 30, 3, 2, 2
-r: 60, 3, 2, 2
-r: 90, 3, 2, 2
-r:120, 3, 2, 2
+# Zieltemperatur[°C], Toleranz Zieltemperaur [°C], Haltedauer [min], Stationärdauer [min], Toleranz Stationärtemperaur [°C] 
+r:70, 10, .25, .25, 5
+r:75, 10, .25, .25, 5
