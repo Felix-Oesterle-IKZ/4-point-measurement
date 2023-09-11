@@ -7,21 +7,21 @@ DAQ-6510:
     parity: N
     timeout: 2.0
   settings:
-    nplc: 1  # nplc of all DC measurements, reduce this for higher sampling rates!
-    lsync: True  # line sync for all channels
-    ocom: True  # offset compensation for all channels
-    azer: False  # automatic zeroing for all channels
-    adel: True  # automatic delay for all channels
+    nplc: 10                       # nplc of all DC measurements, reduce this for higher sampling rates!
+    lsync: True                    # line sync for all channels
+    ocom: True                     # offset compensation for all channels
+    azer: False                    # automatic zeroing for all channels
+    adel: True                     # automatic delay for all channels
     internal-cold-junction: False  # if False: use 0.0°C
   channels:
     201: 
       type: dcv
       tab-name: Current
-      range: 10  # V (optional)
-      sensor-id: rogowski_PEM_300A
-      factor: 50 # Ampere / Volt
-      unit: A
-      
+      range: 10e-3                 # V (optional)
+      sensor-id: dcv
+      factor: 50                   # Ampere / Volt
+      unit: V
+
 Heizer:
   Schnittstelle:
     com:      '/dev/ttyUSB0'   
