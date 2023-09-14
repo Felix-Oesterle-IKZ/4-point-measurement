@@ -23,10 +23,13 @@ The following external libraries are used: yaml, atexit, matplotlib, numpy, usbt
 ---
 ##  <u> 5. Usage of the scripts: </u>
 Before using "hauptprogramm.py" "config.yml" and "settings.txt" have to be configured.
+
 "config.yml" is used to configure the DAQ6510 and the heating plate (IKA or Eurotherm).
+
 "settings.txt" is used to configure the depth of the sample, the currents used and the temperature settings. Read settings.txt for detailed information.
-The "2540 SourceMeter" is configured directly in the script, no configuration should be needed.
-A method to control the "2540 SourceMeter" over the Internet and Selenium can be found in 2450SourceMeterWithInternet.py, but it is not used.
+
+The "2540 SourceMeter" is configured directly in the script, no configuration should be needed.A method to control the "2540 SourceMeter" over the Internet and Selenium can be found in 2450SourceMeterWithInternet.py, but it is not used.
+
 If all settings are configured, hauptprogramm.py can be started. The program should start and run automatically, with no further action needed. If a plot appears and moves once a second, the program runs as intended. The program is finished when the plot closes. If the plot is closed early, the program will halt. 
 
 ---
