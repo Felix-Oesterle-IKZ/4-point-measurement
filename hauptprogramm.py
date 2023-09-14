@@ -12,25 +12,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 import usbtmc
 
-"""
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-"""
 
-# Erstellt den Ergebnis Ordner und bereitet die Datein vor.
-# Gibt den path zum Ergebnisordner zurück
+
+# Erstellt den Ergebnisordner und erstellt die Datein, sowie die erste Zeile der .cvs Datein
+# Erg: Gibt den path zum Ergebnisordner zurück
 def createFiles():
     date = datetime.now().strftime('%Y-%m-%d')
     parent_dir = "./data/"
     
     # Automatische Erzeugung von eindeutigen Filenamen, ohne das eine alte Datei überschrieben wird:
-    directoryIndex = str(1).zfill(2)
+    directoryIndex = '#'+str(1).zfill(2)
     directory = f"{date}_{directoryIndex}" # Andere Dateiendungen (z.B. dat) auch möglich
     j = 1
     while os.path.exists(parent_dir + '/' + directory): # Schaut ob es den Namen schon in dem Verzeichnis gibt ...
         j = j + 1 # ... wenn ja wird der FleOutIndex (j) solange erhöht bis es eine neue Datei erstellen kann
-        directoryIndex = str(j).zfill(2)
+        directoryIndex = '#'+str(j).zfill(2)
         directory = f"{date}_{directoryIndex}"
     
     path = os.path.join(parent_dir, directory)
@@ -47,7 +43,7 @@ def createFiles():
 
 
 # Liest die Datei "settings.txt" ein.
-# Erg: Wertelisten aus dem Rezept.
+# Erg: Wertelisten aus dem Rezept; für detalierte Beschreibung siehe debugPrint Fuktion
 def readRezept(debugPrint=True):
     with open("settings.txt", "r", encoding="utf-8") as f:
         rezept = f.read().split("\n")
@@ -81,13 +77,13 @@ def readRezept(debugPrint=True):
         tTarget[i] = tTarget[i].replace("r:", "")
         
     if debugPrint == True:
-        print(f"Tiefe:          {tiefe}")
-        print(f"tTarget:        {tTarget}")
-        print(f"tToleranz:      {tToleranz}")
-        print(f"tTime:          {tTime}")
-        print(f"tStatio:        {tStationaer}")
-        print(f"tStatioToleranz:{tStationaerTolerace}")
-        print(f"IList:          {IList}")
+        print(f"Tiefe:          {tiefe}") # Tiefe der Probe
+        print(f"tTarget:        {tTarget}") # Liste der Zieltemeraturen
+        print(f"tToleranz:      {tToleranz}") # Liste des Tolranzbereich für die Zieltemeraturen
+        print(f"tTime:          {tTime}") # Liste der Zeiten die für die Messung verwedet werden soll
+        print(f"tStatio:        {tStationaer}") # Liste der Zeiten, die die Temperatur stationär sein soll
+        print(f"tStatioToleranz:{tStationaerTolerace}") # Liste der Toleranz der Stationärtemperatur
+        print(f"IList:          {IList}") # Liste der Ströme die angelegt werden; gilt für jede Zieltemperatur tTarget
         print("-----------------------\n")
         
     return tiefe, tTarget, tToleranz, tTime, tStationaer, tStationaerTolerace, IList
@@ -102,7 +98,10 @@ def plotData(ax, List, Line):
         Line.set_ydata(List) # plot new line
         
 
-# Prüfen ob die Temperatur Stationär ist
+# Prüft ob die Temperatur Stationär ist, gibt True zurück wenn ja.
+# Vor: tList:               Liste der Temperaturen die geprüft werden sollen
+#      tStationär:          Wie lang die Stationärität daueren soll in Minuten
+#      tStationaerTolerace: Welche Temperaturabweichung "geduldet" wird in °C
 def stationaerPruefung(tList, tStationaer, tStationaerTolerace):
     isStationaer = False
     if len(tList) > tStationaer: # Nur prüfen wenn über StationarTime Einträge vohanden sind
@@ -120,21 +119,11 @@ def stationaerPruefung(tList, tStationaer, tStationaerTolerace):
             #print("Nicht Stationaer")
     return isStationaer
 
-"""
-#Sends Command to 2540 over LAN
-def sendCommand2450(command):
-    driver.get("http://admin:admin@172.20.22.127/commands.html")
-    input_text_cmd = driver.find_element(By.ID, 'cmd')
-    input_text_cmd.send_keys(command)
-    time.sleep(1.9)
-    driver.find_element(By.ID, 'send').click()
-    #driver.quit()
-"""
 
 
 # Ließt die Temperatur der Heizplatte, die Spannung der Probe und berechnet den Oberflächenwiedertand
 # Vor: Tiefe der Probe t in m
-# Erg: Werteliste
+# Erg: Werteliste mit der Spannung U, des spezifischer Wiederstand rho_2D und der Temperatur T
 def getData(t, debugPrint=False):
     
     U = round(float(daq.read().split(",")[1])*1000, 6) # Spannung die gemessen wird
@@ -151,10 +140,10 @@ def getData(t, debugPrint=False):
         print(f"{T}°C", end="\n\n")
     return U, rho_2D, T
     
-
+# Schließt das Programm ordnugsgemäß
 def on_close(event):
-    sensor.stop_heizung()
-    SourceMeter.write("SOURce:CURRent 0")
+    sensor.stop_heizung() # Stopt die Heizung
+    SourceMeter.write("SOURce:CURRent 0") # Schaltet den Strom auf 0A
     print("Program wurde ordungsgemäß geschlossen!")
     exit()
 ###########################################################################################
@@ -163,14 +152,7 @@ def on_close(event):
 with open("config.yml", "r") as f:
     config = yaml.safe_load(f)
 
-"""
-# Selenium vorbereiten
-service = Service(executable_path='/usr/bin/chromedriver')
-options = webdriver.ChromeOptions()
-driver = webdriver.Chrome(service=service, options=options)
 
-sendCommand2450(":OUTPut:STATe ON")
-"""
 
 # Multimeter DAQ6510 vorbeiten
 daq = daq6510.Daq6510(config['DAQ-6510'])
@@ -195,7 +177,7 @@ tList = [0] # Speichert alle gemessenden Temperaturen intern
 uList = [0] # Speichert alle gemessenden Spannungn intern
 iList = [0] # Speichert alle gesetzten Ströme intern
 
-#liest alle Listen der settings.txt ein. Für eine Erklärung siehe settings.txt
+#liest alle Listen der settings.txt ein. Für eine Erklärung siehe readRezept() Funktion
 tiefe, tTargetList, tToleranceList, tTimeList, tStationaerList, tStationaerToleraceList, IList = readRezept()
 
 path = createFiles()
@@ -211,8 +193,8 @@ fig.suptitle("Programm wird beendet, wenn Plot geschlossen wird!",fontsize=14) #
 # Graph: Spannung
 ax1 = plt.subplot(211)
 ax1.set_ylim([0, 1.1])
-uLine, = ax1.plot(x, uList)
-iLine, = ax1.plot(x, iList)
+uLine, = ax1.plot(x, uList) # plottet Spannung
+iLine, = ax1.plot(x, iList) # plottet Strom
 plt.title("Spannung, Strom", fontsize=12)
 plt.xlabel("Zeit [s]",fontsize=10)
 plt.ylabel("Spannung [mV], Strom [A]",fontsize=10)
@@ -220,8 +202,8 @@ plt.grid()
 
 # Graph: Temperatur
 ax2 = plt.subplot(212)
-ax2.set_ylim([0, 100])
-tLine, = ax2.plot(x, tList)
+ax2.set_ylim([0, 300])
+tLine, = ax2.plot(x, tList) # plottet Temperatur
 plt.title("Temperatur", fontsize=12)
 plt.xlabel("Zeit [s]",fontsize=10)
 plt.ylabel("Temperatur [°C]",fontsize=10)
@@ -236,67 +218,72 @@ fig.canvas.mpl_connect('close_event', on_close) # Programm wird beendet, wenn Pl
 
 for i in range(len(tTargetList)): # Für jede Temperatur:
     
+    # Erstellt die aktuellen Variablen zur Temperatur aus den settings.txt Listen
     tTarget     = float(tTargetList[i])
     tTolerance  = float(tToleranceList[i])
     tTime       = float(tTimeList[i])
     tStationaer = float(tStationaerList[i])
     tStationaerTolerace = float(tStationaerToleraceList[i])
     
-    data_points = 0
-    
+    #Änderung der Zieltemperaur auf tTarget
     sensor.change_SollTemp(str(tTarget))
     print(f"Nächste Temperatur!\n  tTarget={tTarget}°C")
         
-    for tempI in IList: #Für jeden Strom (in jeder Temperatur):
-        uListTemp = []
-        tListTemp = []
-        data_points = 0
+    for tempI in IList: # Für jeden Strom (in jeder Temperatur):
         
+        uListTemp = [] #  speichert Spannungen in aktueller Messung
+        tListTemp = [] #  speichert Temperaturen in aktueller Messung
+        data_points = 0 # speichert wie viele Messpunkte es gibt (in aktueller Messung)
+        
+        #Änderung des Stroms auf I
         I = float(tempI)
         SourceMeter.write(f"SOURce:CURRent {I}")
-        
         print(f"Nächster Strom!\n  I={I}A")
+        
         while True: # Hauptloop beginnt
             
-            calcStart = time.time()
+            calcStart = time.time() #Speichert Zeit wann der Loop beginnt (um Berechnungszeit festzustellen)
             
             U, rho_2D, T = getData(float(tiefe)/1000, False) # Get Data
         
-            ### Save data internaly for plot Data function
-            tList.append(T)
-            uList.append(U)
-            iList.append(I)
+            # Save data internaly for plot Data function
+            tList.append(T) #speichert Temperatur
+            uList.append(U) #speichert Spannung
+            iList.append(I) #speichert Strom
+            
+            isStationaer = stationaerPruefung(tList, tStationaer, tStationaerTolerace) #prüft Stationärität
         
-            isStationaer = stationaerPruefung(tList, tStationaer, tStationaerTolerace)
-        
-            ### Save data externaly
+            # Save data externaly in data.csv file
             line = f"{I},{U},{rho_2D},{T},{isStationaer}\n"
             with open(os.path.join(path, "data.csv"), "a", encoding="utf-8") as f:
                 f.write(line)
         
-            ### Check if T is in Target Area and stationary
+            # Check if T is in Target Area and stationary
             if T <= (tTarget + tTolerance) and T >= (tTarget - tTolerance) and isStationaer == True:
                 uListTemp.append(U) # Speichert alle Spannungen (in mV) der aktuellen Messung
                 tListTemp.append(T) # Speichert alle Temperaturn der aktuellen Messung
-                data_points = data_points+1
+                data_points = data_points + 1
             
                 # Skip to next Step in Sequence
                 if data_points >= tTime * 60:
+                    # Speichert gerundete Werte der aktuellen Messung in measurement_data.csv datei
+                    # Achtung: passiert erst am Schluss der akteullen Messung!
                     with open(os.path.join(path,"measurement_data.csv"), "a", encoding="utf-8") as f:
                         line = f"{tTarget},{round(np.mean(tListTemp),6)},{round(np.std(tListTemp),6)},{I},{round(np.mean(uListTemp),6)},{round(np.std(uListTemp),6)}\n"
                         f.write(line)
-                    uListTemp = []
-                    tListTemp = []
-                    break
-        
+                    break # Beendet die aktuelle Messung und springt zur nächsten
+            
+            # plottet die verschiedenen Linien
             plotData(ax1, uList, uLine)
             plotData(ax1, iList, iLine)
             plotData(ax2, tList, tLine)
             
+            # aktualiesiert den Graphen
             fig.canvas.draw()
             fig.canvas.flush_events()
 
-            calcEnd = time.time()
+            calcEnd = time.time() # speichert Zeit am Ende der Berechnung
+            
             # adjust for calculation time so every step is exactly 1s appart
             calcTime = calcEnd - calcStart
             if calcTime < 1:
@@ -304,7 +291,6 @@ for i in range(len(tTargetList)): # Für jede Temperatur:
             else:
                 print(f"Achtung: Berechnungszeit ist größer als der Messabstand!\n  calcTime={round(calcTime,2)}s")
         
-        plt.savefig(os.path.join(path,"plot.png")) #Save Plot after every current
-# Programm beenden:
+        plt.savefig(os.path.join(path,"plot.png")) # save Plot after every current
 
-plt.close()
+plt.close() # Beendet das Skript in den der Plot geschlossen wird und die on_close() Funktion ausgelößt wird
